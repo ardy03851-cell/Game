@@ -116,14 +116,22 @@ ctx.imageSmoothingEnabled = false;
 
 // Asset Loader with Fallback Rendering
 const images = {};
-const assetNames = ['player', 'slime', 'coin', 'heart', 'background'];
-let assetsLoaded = 0;
+const assets = [
+  { name: 'player', src: 'player.png' },
+  { name: 'slime', src: 'slime.png' },
+  { name: 'coin', src: 'coin.png' },
+  { name: 'heart', src: 'heart.png' },
+  { name: 'background', src: 'background.png' },
+  { name: 'dust', src: 'vfx/dust.png' },
+  { name: 'sparkle', src: 'vfx/sparkle.png' },
+  { name: 'splat', src: 'vfx/splat.png' }
+];
 
-assetNames.forEach(name => {
-  images[name] = new Image();
-  images[name].src = `${name}.png`;
-  images[name].onload = () => { images[name].loaded = true; };
-  images[name].onerror = () => { images[name].loaded = false; };
+assets.forEach(asset => {
+  images[asset.name] = new Image();
+  images[asset.name].src = asset.src;
+  images[asset.name].onload = () => { images[asset.name].loaded = true; };
+  images[asset.name].onerror = () => { images[asset.name].loaded = false; };
 });
 
 // Game State
@@ -131,6 +139,11 @@ let score = 0;
 let health = 3;
 let gameOver = false;
 let invincibilityTimer = 0;
+const particles = [];
+
+function spawnParticle(type, x, y, vx, vy, life, size = 16) {
+  particles.push({ type, x, y, vx, vy, life, maxLife: life, size });
+}
 
 const keys = { up: false, down: false, left: false, right: false };
 
@@ -184,6 +197,7 @@ function resetGame() {
   health = 3;
   score = 0;
   invincibilityTimer = 0;
+  particles.length = 0;
   player.x = 144;
   player.y = 104;
   gameOver = false;
@@ -203,6 +217,17 @@ let time = 0;
 function update() {
   time += 0.15;
   if (invincibilityTimer > 0) invincibilityTimer--;
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.type === 'splat') p.vy += 0.15; // Gravity effect for splat
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
   if (gameOver) return;
 
   player.isMoving = false;
@@ -210,6 +235,11 @@ function update() {
   if (keys.down && player.y < canvas.height - player.size) { player.y += player.speed; player.isMoving = true; }
   if (keys.left && player.x > 0) { player.x -= player.speed; player.isMoving = true; }
   if (keys.right && player.x < canvas.width - player.size) { player.x += player.speed; player.isMoving = true; }
+
+  // Spawn walking dust
+  if (player.isMoving && Math.random() < 0.3) {
+    spawnParticle('dust', player.x + 8 + (Math.random() * 8), player.y + 20, (Math.random() - 0.5) * 0.5, -Math.random() * 0.4, 18, 16);
+  }
 
   // Enemy movement & bounce
   enemies.forEach(enemy => {
@@ -223,6 +253,9 @@ function update() {
     if (invincibilityTimer <= 0 && checkCollision(player, enemy)) {
       health -= 1;
       invincibilityTimer = 60;
+      for (let i = 0; i < 8; i++) {
+        spawnParticle('splat', player.x + 8, player.y + 8, (Math.random() - 0.5) * 3, Math.random() * 2 + 1, 30, 16);
+      }
       player.x = canvas.width / 2 - 16;
       player.y = canvas.height / 2 - 16;
       if (health <= 0) gameOver = true;
@@ -232,6 +265,9 @@ function update() {
   // Collect Gem
   if (checkCollision(player, coin)) {
     score += 10;
+    for (let i = 0; i < 6; i++) {
+      spawnParticle('sparkle', coin.x + 4, coin.y + 4, (Math.random() - 0.5) * 2, (Math.random() - 0.5) * 2, 22, 16);
+    }
     spawnCoin();
   }
 }
@@ -293,6 +329,19 @@ function draw() {
     }
     ctx.restore();
   }
+
+  // Render Particles
+  particles.forEach(p => {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+    if (images[p.type] && images[p.type].loaded) {
+      ctx.drawImage(images[p.type], p.x, p.y, p.size, p.size);
+    } else {
+      ctx.fillStyle = p.type === 'dust' ? '#aaa' : p.type === 'sparkle' ? '#ffd700' : '#e74c3c';
+      ctx.fillRect(p.x, p.y, p.size / 2, p.size / 2);
+    }
+    ctx.restore();
+  });
 
   // UI (Hearts & Score)
   ctx.fillStyle = '#fff';
