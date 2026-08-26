@@ -47,26 +47,30 @@
     /* iPad Touch Controls */
     #dpad {
       display: grid;
-      grid-template-columns: repeat(3, 60px);
-      grid-template-rows: repeat(3, 60px);
-      gap: 5px;
+      grid-template-columns: repeat(3, 70px);
+      grid-template-rows: repeat(3, 70px);
+      gap: 8px;
       margin-top: 15px;
+      touch-action: none;
     }
 
     .btn {
-      background: rgba(255, 255, 255, 0.15);
-      border: 2px solid rgba(255, 255, 255, 0.4);
-      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border: 2px solid rgba(255, 255, 255, 0.5);
+      border-radius: 12px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
+      font-size: 28px;
       font-weight: bold;
       color: white;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
 
     .btn:active {
-      background: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.5);
     }
 
     #up {
@@ -126,6 +130,7 @@ assetNames.forEach(name => {
 let score = 0;
 let health = 3;
 let gameOver = false;
+let invincibilityTimer = 0;
 
 const keys = { up: false, down: false, left: false, right: false };
 
@@ -155,12 +160,20 @@ function handleKey(key, isPressed) {
 
 function bindTouch(id, dir) {
   const btn = document.getElementById(id);
-  const start = (e) => { e.preventDefault(); keys[dir] = true; if (gameOver) resetGame(); };
-  const end = (e) => { e.preventDefault(); keys[dir] = false; };
-  btn.addEventListener('touchstart', start);
-  btn.addEventListener('touchend', end);
-  btn.addEventListener('mousedown', start);
-  btn.addEventListener('mouseup', end);
+  const start = (e) => { 
+    e.preventDefault(); 
+    keys[dir] = true; 
+    if (gameOver) resetGame(); 
+  };
+  const end = (e) => { 
+    e.preventDefault(); 
+    keys[dir] = false; 
+  };
+  
+  btn.addEventListener('pointerdown', start);
+  btn.addEventListener('pointerup', end);
+  btn.addEventListener('pointercancel', end);
+  btn.addEventListener('pointerleave', end);
 }
 bindTouch('up', 'up');
 bindTouch('down', 'down');
@@ -170,6 +183,7 @@ bindTouch('right', 'right');
 function resetGame() {
   health = 3;
   score = 0;
+  invincibilityTimer = 0;
   player.x = 144;
   player.y = 104;
   gameOver = false;
@@ -188,6 +202,7 @@ function checkCollision(a, b) {
 let time = 0;
 function update() {
   time += 0.15;
+  if (invincibilityTimer > 0) invincibilityTimer--;
   if (gameOver) return;
 
   player.isMoving = false;
@@ -205,8 +220,9 @@ function update() {
     if (enemy.y <= 0 || enemy.y >= canvas.height - enemy.size) enemy.vy *= -1;
 
     // Hit Enemy
-    if (checkCollision(player, enemy)) {
+    if (invincibilityTimer <= 0 && checkCollision(player, enemy)) {
       health -= 1;
+      invincibilityTimer = 60;
       player.x = canvas.width / 2 - 16;
       player.y = canvas.height / 2 - 16;
       if (health <= 0) gameOver = true;
@@ -257,24 +273,26 @@ function draw() {
   });
 
   // Player
-  ctx.save();
-  let pBounce = 0;
-  let pTilt = 0;
-  if (player.isMoving) {
-    pBounce = Math.abs(Math.sin(time * 1.5)) * 5;
-    pTilt = Math.cos(time * 1.5) * 0.15;
+  if (invincibilityTimer % 6 < 3) {
+    ctx.save();
+    let pBounce = 0;
+    let pTilt = 0;
+    if (player.isMoving) {
+      pBounce = Math.abs(Math.sin(time * 1.5)) * 5;
+      pTilt = Math.cos(time * 1.5) * 0.15;
+    }
+    
+    ctx.translate(player.x + player.size / 2, player.y + player.size / 2 - pBounce);
+    ctx.rotate(pTilt);
+    
+    if (images.player.loaded) {
+      ctx.drawImage(images.player, -player.size / 2, -player.size / 2, player.size, player.size);
+    } else {
+      ctx.fillStyle = '#3498db';
+      ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
+    }
+    ctx.restore();
   }
-  
-  ctx.translate(player.x + player.size / 2, player.y + player.size / 2 - pBounce);
-  ctx.rotate(pTilt);
-  
-  if (images.player.loaded) {
-    ctx.drawImage(images.player, -player.size / 2, -player.size / 2, player.size, player.size);
-  } else {
-    ctx.fillStyle = '#3498db';
-    ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
-  }
-  ctx.restore();
 
   // UI (Hearts & Score)
   ctx.fillStyle = '#fff';
