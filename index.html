@@ -3,382 +3,293 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Pixel Jumper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Pixel Dungeon Run</title>
   <style>
     * {
-      margin: 0;
-      padding: 0;
       box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none;
     }
 
     body {
+      margin: 0;
+      padding: 0;
+      background-color: #111116;
+      color: #fff;
+      font-family: monospace;
       display: flex;
-      justify-content: center;
+      flex-direction: column;
       align-items: center;
+      justify-content: center;
       min-height: 100vh;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      font-family: 'Courier New', monospace;
-      touch-action: manipulation;
       overflow: hidden;
     }
 
-    #gameContainer {
+    #game-container {
       position: relative;
-      width: 100%;
-      max-width: 800px;
-      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
-    #gameCanvas {
-      display: block;
-      margin: 0 auto;
+    canvas {
+      background: #222;
+      border: 4px solid #444;
+      border-radius: 4px;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      background: #87CEEB;
-      border: 4px solid #2d3436;
+      max-width: 95vw;
+      max-height: 60vh;
+    }
+
+    /* iPad Touch Controls */
+    #dpad {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap: 5px;
+      margin-top: 15px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.15);
+      border: 2px solid rgba(255, 255, 255, 0.4);
       border-radius: 8px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-      width: 100%;
-      height: auto;
-    }
-
-    #score {
-      text-align: center;
-      color: white;
-      font-size: 28px;
-      margin-bottom: 15px;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-    }
-
-    #startScreen,
-    #gameOverScreen {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.85);
-      color: white;
-      padding: 30px;
-      border-radius: 12px;
-      text-align: center;
-      border: 3px solid #fff;
-      z-index: 10;
-    }
-
-    #startScreen h1,
-    #gameOverScreen h1 {
-      font-size: 32px;
-      margin-bottom: 20px;
-      color: #FFE66D;
-    }
-
-    #startScreen p,
-    #gameOverScreen p {
-      font-size: 18px;
-      margin-bottom: 25px;
-      line-height: 1.5;
-    }
-
-    button {
-      background: #FF6B6B;
-      color: white;
-      border: none;
-      padding: 15px 40px;
-      font-size: 20px;
-      font-family: 'Courier New', monospace;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: transform 0.1s;
-      box-shadow: 0 4px 0 #C44545;
-    }
-
-    button:active {
-      transform: translateY(4px);
-      box-shadow: 0 0 0 #C44545;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    #finalScore {
+      display: flex;
+      align-items: center;
+      justify-content: center;
       font-size: 24px;
-      color: #4ECDC4;
-      margin-bottom: 20px;
+      font-weight: bold;
+      color: white;
+    }
+
+    .btn:active {
+      background: rgba(255, 255, 255, 0.4);
+    }
+
+    #up {
+      grid-column: 2;
+      grid-row: 1;
+    }
+
+    #left {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    #right {
+      grid-column: 3;
+      grid-row: 2;
+    }
+
+    #down {
+      grid-column: 2;
+      grid-row: 3;
     }
   </style>
 </head>
 
 <body>
-  <div id="gameContainer">
-    <div id="score">Score: 0</div>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
 
-    <div id="startScreen">
-      <h1>PIXEL JUMPER</h1>
-      <p>Tap screen or press SPACE to jump<br>Avoid the obstacles!</p>
-      <button id="startBtn">START GAME</button>
-    </div>
+  <div id="game-container">
+    <canvas id="game" width="320" height="240"></canvas>
 
-    <div id="gameOverScreen" class="hidden">
-      <h1>GAME OVER</h1>
-      <div id="finalScore">Score: 0</div>
-      <button id="restartBtn">PLAY AGAIN</button>
+    <!-- Virtual D-Pad for iPad -->
+    <div id="dpad">
+      <div class="btn" id="up">▲</div>
+      <div class="btn" id="left">◀</div>
+      <div class="btn" id="right">▶</div>
+      <div class="btn" id="down">▼</div>
     </div>
   </div>
 
   <script>
-    const canvas = document.getElementById('gameCanvas');
-        const ctx = canvas.getContext('2d');
-        const scoreElement = document.getElementById('score');
-        const startScreen = document.getElementById('startScreen');
-        const gameOverScreen = document.getElementById('gameOverScreen');
-        const startBtn = document.getElementById('startBtn');
-        const restartBtn = document.getElementById('restartBtn');
-        const finalScoreElement = document.getElementById('finalScore');
+    const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
 
-        // Game state
-        let gameRunning = false;
-        let score = 0;
-        let gameSpeed = 5;
-        let frameCount = 0;
+// Asset Loader with Fallback Rendering
+const images = {};
+const assetNames = ['player', 'slime', 'coin', 'heart', 'background'];
+let assetsLoaded = 0;
 
-        // Player (pixel art will be drawn here)
-        const player = {
-            x: 100,
-            y: 300,
-            width: 40,
-            height: 40,
-            velocityY: 0,
-            gravity: 0.8,
-            jumpStrength: -15,
-            grounded: false
-        };
+assetNames.forEach(name => {
+  images[name] = new Image();
+  images[name].src = `${name}.png`;
+  images[name].onload = () => { images[name].loaded = true; };
+  images[name].onerror = () => { images[name].loaded = false; };
+});
 
-        // Obstacles
-        let obstacles = [];
-        const obstacleWidth = 30;
-        const obstacleHeight = 40;
+// Game State
+let score = 0;
+let health = 3;
+let gameOver = false;
 
-        // Ground
-        const groundY = 340;
+const keys = { up: false, down: false, left: false, right: false };
 
-        // Draw pixel art function
-        function drawPixelArt(x, y, pixels, pixelSize) {
-            pixels.forEach((row, rowIndex) => {
-                row.forEach((color, colIndex) => {
-                    if (color !== 'transparent') {
-                        ctx.fillStyle = color;
-                        ctx.fillRect(
-                            x + colIndex * pixelSize,
-                            y + rowIndex * pixelSize,
-                            pixelSize,
-                            pixelSize
-                        );
-                    }
-                });
-            });
-        }
+const player = { x: 144, y: 104, size: 32, speed: 2 };
+const coin = { x: 50, y: 50, size: 16 };
+const enemies = [
+  { x: 30, y: 30, size: 32, vx: 1.5, vy: 1.2 },
+  { x: 200, y: 150, size: 32, vx: -1.2, vy: 1.5 }
+];
 
-        // Player pixel art (10x10 grid) - REPLACE WITH YOUR ART
-        const playerPixels = [
-            ['transparent', 'transparent', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', 'transparent', 'transparent', 'transparent', 'transparent'],
-            ['transparent', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', 'transparent', 'transparent', 'transparent'],
-            ['transparent', '#FFE66D', '#000000', '#FFE66D', '#FFE66D', '#000000', '#FFE66D', 'transparent', 'transparent', 'transparent'],
-            ['transparent', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', '#FFE66D', 'transparent', 'transparent', 'transparent'],
-            ['transparent', 'transparent', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', 'transparent', 'transparent', 'transparent', 'transparent'],
-            ['transparent', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', 'transparent', 'transparent', 'transparent'],
-            ['transparent', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', '#FF6B6B', 'transparent', 'transparent', 'transparent'],
-            ['transparent', 'transparent', '#4ECDC4', '#4ECDC4', '#4ECDC4', '#4ECDC4', 'transparent', 'transparent', 'transparent', 'transparent'],
-            ['#4ECDC4', '#4ECDC4', '#4ECDC4', '#4ECDC4', '#4ECDC4', '#4ECDC4', '#4ECDC4', 'transparent', 'transparent', 'transparent'],
-            ['#4ECDC4', '#4ECDC4', 'transparent', 'transparent', 'transparent', 'transparent', '#4ECDC4', '#4ECDC4', 'transparent', 'transparent']
-        ];
+function spawnCoin() {
+  coin.x = Math.floor(Math.random() * (canvas.width - coin.size - 20)) + 10;
+  coin.y = Math.floor(Math.random() * (canvas.height - coin.size - 20)) + 10;
+}
 
-        // Obstacle pixel art (6x8 grid) - REPLACE WITH YOUR ART
-        const obstaclePixels = [
-            ['transparent', 'transparent', '#8B4513', '#8B4513', 'transparent', 'transparent'],
-            ['transparent', '#8B4513', '#8B4513', '#8B4513', '#8B4513', 'transparent'],
-            ['#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513'],
-            ['#8B4513', '#8B4513', '#A0522D', '#A0522D', '#8B4513', '#8B4513'],
-            ['#8B4513', '#8B4513', '#A0522D', '#A0522D', '#8B4513', '#8B4513'],
-            ['#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513'],
-            ['#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513', '#8B4513'],
-            ['transparent', 'transparent', '#8B4513', '#8B4513', 'transparent', 'transparent']
-        ];
+// Input Handlers
+window.addEventListener('keydown', e => handleKey(e.key, true));
+window.addEventListener('keyup', e => handleKey(e.key, false));
 
-        // Draw background
-        function drawBackground() {
-            // Sky
-            ctx.fillStyle = '#87CEEB';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+function handleKey(key, isPressed) {
+  if (key === 'ArrowUp' || key === 'w' || key === 'W') keys.up = isPressed;
+  if (key === 'ArrowDown' || key === 's' || key === 'S') keys.down = isPressed;
+  if (key === 'ArrowLeft' || key === 'a' || key === 'A') keys.left = isPressed;
+  if (key === 'ArrowRight' || key === 'd' || key === 'D') keys.right = isPressed;
+  if (gameOver && isPressed) resetGame();
+}
 
-            // Clouds
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-            ctx.fillRect(100, 50, 80, 30);
-            ctx.fillRect(150, 40, 60, 25);
-            ctx.fillRect(500, 80, 100, 35);
-            ctx.fillRect(560, 70, 70, 30);
+function bindTouch(id, dir) {
+  const btn = document.getElementById(id);
+  const start = (e) => { e.preventDefault(); keys[dir] = true; if (gameOver) resetGame(); };
+  const end = (e) => { e.preventDefault(); keys[dir] = false; };
+  btn.addEventListener('touchstart', start);
+  btn.addEventListener('touchend', end);
+  btn.addEventListener('mousedown', start);
+  btn.addEventListener('mouseup', end);
+}
+bindTouch('up', 'up');
+bindTouch('down', 'down');
+bindTouch('left', 'left');
+bindTouch('right', 'right');
 
-            // Ground
-            ctx.fillStyle = '#8B4513';
-            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+function resetGame() {
+  health = 3;
+  score = 0;
+  player.x = 144;
+  player.y = 104;
+  gameOver = false;
+  spawnCoin();
+}
 
-            // Grass
-            ctx.fillStyle = '#228B22';
-            ctx.fillRect(0, groundY, canvas.width, 10);
-        }
+// Collision Helper
+function checkCollision(a, b) {
+  return a.x < b.x + b.size &&
+         a.x + a.size > b.x &&
+         a.y < b.y + b.size &&
+         a.y + a.size > b.y;
+}
 
-        // Update player physics
-        function updatePlayer() {
-            player.velocityY += player.gravity;
-            player.y += player.velocityY;
+// Update Loop
+function update() {
+  if (gameOver) return;
 
-            if (player.y + player.height >= groundY) {
-                player.y = groundY - player.height;
-                player.velocityY = 0;
-                player.grounded = true;
-            } else {
-                player.grounded = false;
-            }
-        }
+  if (keys.up && player.y > 0) player.y -= player.speed;
+  if (keys.down && player.y < canvas.height - player.size) player.y += player.speed;
+  if (keys.left && player.x > 0) player.x -= player.speed;
+  if (keys.right && player.x < canvas.width - player.size) player.x += player.speed;
 
-        // Jump function
-        function jump() {
-            if (player.grounded && gameRunning) {
-                player.velocityY = player.jumpStrength;
-                player.grounded = false;
-            }
-        }
+  // Enemy movement & bounce
+  enemies.forEach(enemy => {
+    enemy.x += enemy.vx;
+    enemy.y += enemy.vy;
 
-        // Spawn obstacle
-        function spawnObstacle() {
-            obstacles.push({
-                x: canvas.width,
-                y: groundY - obstacleHeight,
-                width: obstacleWidth,
-                height: obstacleHeight
-            });
-        }
+    if (enemy.x <= 0 || enemy.x >= canvas.width - enemy.size) enemy.vx *= -1;
+    if (enemy.y <= 0 || enemy.y >= canvas.height - enemy.size) enemy.vy *= -1;
 
-        // Update obstacles
-        function updateObstacles() {
-            obstacles.forEach((obstacle, index) => {
-                obstacle.x -= gameSpeed;
+    // Hit Enemy
+    if (checkCollision(player, enemy)) {
+      health -= 1;
+      player.x = canvas.width / 2 - 16;
+      player.y = canvas.height / 2 - 16;
+      if (health <= 0) gameOver = true;
+    }
+  });
 
-                // Remove off-screen obstacles
-                if (obstacle.x + obstacle.width < 0) {
-                    obstacles.splice(index, 1);
-                    score++;
-                    scoreElement.textContent = `Score: ${score}`;
+  // Collect Gem
+  if (checkCollision(player, coin)) {
+    score += 10;
+    spawnCoin();
+  }
+}
 
-                    // Increase difficulty
-                    if (score % 5 === 0) {
-                        gameSpeed += 0.5;
-                    }
-                }
-            });
-        }
+// Render Loop
+function draw() {
+  // Background Tile
+  if (images.background.loaded) {
+    const pattern = ctx.createPattern(images.background, 'repeat');
+    ctx.fillStyle = pattern;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  } else {
+    ctx.fillStyle = '#2d3732';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
 
-        // Check collision
-        function checkCollision() {
-            const playerPixelSize = player.width / 10;
-            const obstaclePixelSize = obstacleWidth / 6;
+  // Coin
+  if (images.coin.loaded) {
+    ctx.drawImage(images.coin, coin.x, coin.y, coin.size, coin.size);
+  } else {
+    ctx.fillStyle = '#f1c40f';
+    ctx.fillRect(coin.x, coin.y, coin.size, coin.size);
+  }
 
-            obstacles.forEach(obstacle => {
-                if (
-                    player.x < obstacle.x + obstacle.width &&
-                    player.x + player.width > obstacle.x &&
-                    player.y < obstacle.y + obstacle.height &&
-                    player.y + player.height > obstacle.y
-                ) {
-                    gameOver();
-                }
-            });
-        }
+  // Enemies
+  enemies.forEach(enemy => {
+    if (images.slime.loaded) {
+      ctx.drawImage(images.slime, enemy.x, enemy.y, enemy.size, enemy.size);
+    } else {
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+    }
+  });
 
-        // Draw everything
-        function draw() {
-            drawBackground();
+  // Player
+  if (images.player.loaded) {
+    ctx.drawImage(images.player, player.x, player.y, player.size, player.size);
+  } else {
+    ctx.fillStyle = '#3498db';
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+  }
 
-            // Draw player
-            drawPixelArt(player.x, player.y, playerPixels, player.width / 10);
+  // UI (Hearts & Score)
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px monospace';
+  ctx.fillText(`SCORE: ${score}`, 10, 18);
 
-            // Draw obstacles
-            obstacles.forEach(obstacle => {
-                drawPixelArt(obstacle.x, obstacle.y, obstaclePixels, obstacleWidth / 6);
-            });
-        }
+  for (let i = 0; i < health; i++) {
+    if (images.heart.loaded) {
+      ctx.drawImage(images.heart, canvas.width - 24 - (i * 20), 8, 16, 16);
+    } else {
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillRect(canvas.width - 24 - (i * 20), 8, 12, 12);
+    }
+  }
 
-        // Game loop
-        function gameLoop() {
-            if (!gameRunning) return;
+  // Game Over Screen
+  if (gameOver) {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.font = '16px monospace';
+    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
+    ctx.font = '10px monospace';
+    ctx.fillText('Tap D-Pad or press key to restart', canvas.width / 2, canvas.height / 2 + 15);
+    ctx.textAlign = 'left';
+  }
+}
 
-            frameCount++;
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
 
-            updatePlayer();
-            updateObstacles();
-            checkCollision();
-
-            // Spawn obstacles
-            if (frameCount % 90 === 0) {
-                spawnObstacle();
-            }
-
-            draw();
-            requestAnimationFrame(gameLoop);
-        }
-
-        // Start game
-        function startGame() {
-            gameRunning = true;
-            score = 0;
-            gameSpeed = 5;
-            frameCount = 0;
-            obstacles = [];
-            player.y = 300;
-            player.velocityY = 0;
-            scoreElement.textContent = `Score: ${score}`;
-            startScreen.classList.add('hidden');
-            gameOverScreen.classList.add('hidden');
-            gameLoop();
-        }
-
-        // Game over
-        function gameOver() {
-            gameRunning = false;
-            finalScoreElement.textContent = `Score: ${score}`;
-            gameOverScreen.classList.remove('hidden');
-        }
-
-        // Event listeners
-        startBtn.addEventListener('click', startGame);
-        restartBtn.addEventListener('click', startGame);
-
-        // Touch support for iPad
-        canvas.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            jump();
-        });
-
-        // Keyboard support
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space') {
-                e.preventDefault();
-                jump();
-            }
-        });
-
-        // Prevent double-tap zoom on iPad
-        document.addEventListener('touchstart', function(event) {
-            if (event.touches.length > 1) {
-                event.preventDefault();
-            }
-        }, { passive: false });
-
-        // Initial draw
-        drawBackground();
-        drawPixelArt(player.x, player.y, playerPixels, player.width / 10);
+gameLoop();
   </script>
 </body>
 
