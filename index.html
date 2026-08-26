@@ -185,13 +185,16 @@ function checkCollision(a, b) {
 }
 
 // Update Loop
+let time = 0;
 function update() {
+  time += 0.15;
   if (gameOver) return;
 
-  if (keys.up && player.y > 0) player.y -= player.speed;
-  if (keys.down && player.y < canvas.height - player.size) player.y += player.speed;
-  if (keys.left && player.x > 0) player.x -= player.speed;
-  if (keys.right && player.x < canvas.width - player.size) player.x += player.speed;
+  player.isMoving = false;
+  if (keys.up && player.y > 0) { player.y -= player.speed; player.isMoving = true; }
+  if (keys.down && player.y < canvas.height - player.size) { player.y += player.speed; player.isMoving = true; }
+  if (keys.left && player.x > 0) { player.x -= player.speed; player.isMoving = true; }
+  if (keys.right && player.x < canvas.width - player.size) { player.x += player.speed; player.isMoving = true; }
 
   // Enemy movement & bounce
   enemies.forEach(enemy => {
@@ -221,9 +224,7 @@ function update() {
 function draw() {
   // Background Tile
   if (images.background.loaded) {
-    const pattern = ctx.createPattern(images.background, 'repeat');
-    ctx.fillStyle = pattern;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
   } else {
     ctx.fillStyle = '#2d3732';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -238,22 +239,42 @@ function draw() {
   }
 
   // Enemies
-  enemies.forEach(enemy => {
+  enemies.forEach((enemy, index) => {
+    ctx.save();
+    const bounce = Math.abs(Math.sin(time + index)) * 4;
+    const tilt = Math.cos(time + index) * 0.1;
+    
+    ctx.translate(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2 - bounce);
+    ctx.rotate(tilt);
+    
     if (images.slime.loaded) {
-      ctx.drawImage(images.slime, enemy.x, enemy.y, enemy.size, enemy.size);
+      ctx.drawImage(images.slime, -enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
     } else {
       ctx.fillStyle = '#e74c3c';
-      ctx.fillRect(enemy.x, enemy.y, enemy.size, enemy.size);
+      ctx.fillRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
     }
+    ctx.restore();
   });
 
   // Player
+  ctx.save();
+  let pBounce = 0;
+  let pTilt = 0;
+  if (player.isMoving) {
+    pBounce = Math.abs(Math.sin(time * 1.5)) * 5;
+    pTilt = Math.cos(time * 1.5) * 0.15;
+  }
+  
+  ctx.translate(player.x + player.size / 2, player.y + player.size / 2 - pBounce);
+  ctx.rotate(pTilt);
+  
   if (images.player.loaded) {
-    ctx.drawImage(images.player, player.x, player.y, player.size, player.size);
+    ctx.drawImage(images.player, -player.size / 2, -player.size / 2, player.size, player.size);
   } else {
     ctx.fillStyle = '#3498db';
-    ctx.fillRect(player.x, player.y, player.size, player.size);
+    ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
   }
+  ctx.restore();
 
   // UI (Hearts & Score)
   ctx.fillStyle = '#fff';
