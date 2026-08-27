@@ -3,423 +3,876 @@
 
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Pixel Dungeon Run</title>
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Slime Vale</title>
   <style>
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
+    :root {
+      --ink: #1a1023;
+      --panel: #241732;
+      --panel-edge: #3a2450;
+      --gold: #ffd76a;
+      --gold-dark: #b8862f;
+      --hp-red: #e8455c;
+      --accent: #7cf0c2;
+      --accent-dark: #2f8f6d;
+      --text: #f4ecff;
+      --shadow: rgba(0, 0, 0, 0.55);
     }
 
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    html,
     body {
       margin: 0;
       padding: 0;
-      background-color: #111116;
-      color: #fff;
-      font-family: monospace;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
+      width: 100%;
+      height: 100%;
       overflow: hidden;
+      background: var(--ink);
+      font-family: 'Courier New', ui-monospace, monospace;
+      image-rendering: pixelated;
+      touch-action: none;
     }
 
-    #game-container {
-      position: relative;
+    #gameWrap {
+      position: fixed;
+      inset: 0;
       display: flex;
-      flex-direction: column;
       align-items: center;
+      justify-content: center;
+      background: #0a0611;
     }
 
     canvas {
-      background: #222;
-      border: 4px solid #444;
-      border-radius: 4px;
       image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
       image-rendering: crisp-edges;
-      max-width: 95vw;
-      max-height: 60vh;
+      background: #000;
+      max-width: 100vw;
+      max-height: 100vh;
+      box-shadow: 0 0 0 4px #000, 0 0 40px rgba(0, 0, 0, 0.8);
     }
 
-    /* iPad Touch Controls */
-    #dpad {
-      display: grid;
-      grid-template-columns: repeat(3, 70px);
-      grid-template-rows: repeat(3, 70px);
+    /* ---------- HUD ---------- */
+    #hud {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    .hud-panel {
+      background: var(--panel);
+      border: 3px solid var(--panel-edge);
+      box-shadow: 0 4px 0 var(--shadow), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
       gap: 8px;
-      margin-top: 15px;
+    }
+
+    #hearts {
+      gap: 4px;
+    }
+
+    .heart-slot {
+      width: 22px;
+      height: 20px;
+      position: relative;
+    }
+
+    .heart-slot img {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 2px 0 var(--shadow));
+    }
+
+    .heart-slot.empty img {
+      filter: grayscale(1) brightness(0.35);
+    }
+
+    #coinCounter {
+      font-size: 15px;
+      color: var(--gold);
+      text-shadow: 2px 2px 0 var(--shadow);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      letter-spacing: 1px;
+    }
+
+    #coinCounter img {
+      width: 20px;
+      height: 20px;
+      image-rendering: pixelated;
+    }
+
+    #levelBadge {
+      font-size: 11px;
+      color: var(--accent);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      text-shadow: 2px 2px 0 var(--shadow);
+    }
+
+    #toast {
+      position: fixed;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--panel);
+      border: 3px solid var(--panel-edge);
+      border-radius: 4px;
+      padding: 8px 18px;
+      color: var(--text);
+      font-size: 13px;
+      letter-spacing: 1px;
+      box-shadow: 0 4px 0 var(--shadow);
+      opacity: 0;
+      transition: opacity 0.3s, transform 0.3s;
+      pointer-events: none;
+      z-index: 25;
+      white-space: nowrap;
+    }
+
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(4px);
+    }
+
+    /* ---------- Joystick ---------- */
+    #joyZone {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 45%;
+      height: 45%;
+      z-index: 30;
       touch-action: none;
+    }
+
+    #joyBase {
+      position: fixed;
+      width: 110px;
+      height: 110px;
+      border-radius: 50%;
+      background: rgba(36, 23, 50, 0.55);
+      border: 3px solid rgba(124, 240, 194, 0.5);
+      display: none;
+      z-index: 31;
+      pointer-events: none;
+    }
+
+    #joyStick {
+      position: fixed;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid var(--accent-dark);
+      box-shadow: 0 3px 0 var(--shadow);
+      display: none;
+      z-index: 32;
+      pointer-events: none;
+    }
+
+    /* ---------- Start / Game Over screens ---------- */
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 50;
+      background: radial-gradient(ellipse at center, #241732 0%, #0a0611 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 18px;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .overlay.hidden {
+      display: none;
+    }
+
+    .title {
+      font-size: clamp(28px, 7vw, 48px);
+      color: var(--gold);
+      text-shadow: 4px 4px 0 var(--shadow), 0 0 24px rgba(255, 215, 106, 0.35);
+      letter-spacing: 3px;
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--accent);
+      font-size: 13px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin: -8px 0 10px;
+    }
+
+    .sprite-row {
+      display: flex;
+      gap: 18px;
+      align-items: flex-end;
+      margin: 6px 0 10px;
+    }
+
+    .sprite-row img {
+      width: 56px;
+      height: 56px;
+      image-rendering: pixelated;
+      filter: drop-shadow(0 6px 0 var(--shadow));
+      animation: bob 1.6s ease-in-out infinite;
+    }
+
+    .sprite-row img:nth-child(2) {
+      animation-delay: 0.3s;
+    }
+
+    .sprite-row img:nth-child(3) {
+      animation-delay: 0.6s;
+    }
+
+    @keyframes bob {
+
+      0%,
+      100% {
+        transform: translateY(0);
+      }
+
+      50% {
+        transform: translateY(-8px);
+      }
     }
 
     .btn {
-      background: rgba(255, 255, 255, 0.2);
-      border: 2px solid rgba(255, 255, 255, 0.5);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      font-weight: bold;
-      color: white;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: none;
+      font-family: inherit;
+      font-size: 15px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      background: var(--accent);
+      color: #0a2b20;
+      border: none;
+      padding: 14px 30px;
+      border-radius: 4px;
+      box-shadow: 0 5px 0 var(--accent-dark);
+      cursor: pointer;
+      transition: transform 0.08s;
     }
 
     .btn:active {
-      background: rgba(255, 255, 255, 0.5);
+      transform: translateY(4px);
+      box-shadow: 0 1px 0 var(--accent-dark);
     }
 
-    #up {
-      grid-column: 2;
-      grid-row: 1;
+    .hint {
+      color: #a996c4;
+      font-size: 11px;
+      letter-spacing: 1px;
+      max-width: 340px;
+      line-height: 1.6;
     }
 
-    #left {
-      grid-column: 1;
-      grid-row: 2;
+    #gameOverStats {
+      color: var(--text);
+      font-size: 14px;
+      letter-spacing: 1px;
+      line-height: 2;
     }
 
-    #right {
-      grid-column: 3;
-      grid-row: 2;
-    }
-
-    #down {
-      grid-column: 2;
-      grid-row: 3;
+    #gameOverStats b {
+      color: var(--gold);
     }
   </style>
 </head>
 
 <body>
 
-  <div id="game-container">
-    <canvas id="game" width="320" height="240"></canvas>
+  <div id="gameWrap">
+    <canvas id="game"></canvas>
+  </div>
 
-    <!-- Virtual D-Pad for iPad -->
-    <div id="dpad">
-      <div class="btn" id="up">▲</div>
-      <div class="btn" id="left">◀</div>
-      <div class="btn" id="right">▶</div>
-      <div class="btn" id="down">▼</div>
+  <!-- HUD -->
+  <div id="hud">
+    <div class="hud-panel" id="hearts"></div>
+    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+      <div class="hud-panel" id="coinCounter">
+        <img src="https://raw.githubusercontent.com/ardy03851-cell/Game/main/coin.png" alt=""><span id="coinVal">0</span>
+      </div>
+      <div id="levelBadge">Vale · Depth 1</div>
     </div>
   </div>
 
+  <div id="toast"></div>
+
+  <!-- Joystick -->
+  <div id="joyZone"></div>
+  <div id="joyBase"></div>
+  <div id="joyStick"></div>
+
+  <!-- Start screen -->
+  <div class="overlay" id="startScreen">
+    <h1 class="title">SLIME VALE</h1>
+    <div class="subtitle">a tiny pixel wandering</div>
+    <div class="sprite-row">
+      <img src="https://raw.githubusercontent.com/ardy03851-cell/Game/main/player.png" alt="">
+      <img src="https://raw.githubusercontent.com/ardy03851-cell/Game/main/slime.png" alt="">
+      <img src="https://raw.githubusercontent.com/ardy03851-cell/Game/main/heart.png" alt="">
+    </div>
+    <button class="btn" id="startBtn">Begin</button>
+    <p class="hint">Drag the stick in the bottom-left to move.<br>Walk into slimes to bump them. Collect coins. Don't run out of hearts.
+    </p>
+  </div>
+
+  <!-- Game over screen -->
+  <div class="overlay hidden" id="overScreen">
+    <h1 class="title" style="color:var(--hp-red)">DEFEATED</h1>
+    <div id="gameOverStats"></div>
+    <button class="btn" id="retryBtn">Try Again</button>
+  </div>
+
   <script>
-    const canvas = document.getElementById('game');
-const ctx = canvas.getContext('2d');
+    (function(){
+"use strict";
+
+/* ============================================================
+   ASSET PATHS
+============================================================ */
+const BASE = "https://raw.githubusercontent.com/ardy03851-cell/Game/main/";
+const ASSET_URLS = {
+  player:     BASE + "player.png",
+  slime:      BASE + "slime.png",
+  coin:       BASE + "coin.png",
+  heart:      BASE + "heart.png",
+  background: BASE + "background.png",
+  dust:       BASE + "vfx/dust.png",
+  sparkle:    BASE + "vfx/sparkle.png",
+  splat:      BASE + "vfx/splat.png"
+};
+
+function loadImage(src){
+  return new Promise((resolve)=>{
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = ()=>resolve(img);
+    img.onerror = ()=>{
+      // fallback: draw nothing, resolve with a blank 1x1 so game still runs
+      const blank = new Image();
+      resolve(blank);
+    };
+    img.src = src;
+  });
+}
+
+/* ============================================================
+   CANVAS SETUP
+============================================================ */
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 
-// Asset Loader with Fallback Rendering
-const images = {};
-const assets = [
-  { name: 'player', src: 'player.png' },
-  { name: 'slime', src: 'slime.png' },
-  { name: 'coin', src: 'coin.png' },
-  { name: 'heart', src: 'heart.png' },
-  { name: 'background', src: 'background.png' },
-  { name: 'dust', src: 'vfx/dust.png' },
-  { name: 'sparkle', src: 'vfx/sparkle.png' },
-  { name: 'splat', src: 'vfx/splat.png' }
-];
+const VIEW_W = 400;
+const VIEW_H = 300;
+canvas.width = VIEW_W;
+canvas.height = VIEW_H;
 
-assets.forEach(asset => {
-  images[asset.name] = new Image();
-  images[asset.name].src = asset.src;
-  images[asset.name].onload = () => { images[asset.name].loaded = true; };
-  images[asset.name].onerror = () => { images[asset.name].loaded = false; };
+function fitCanvas(){
+  const wrap = document.getElementById("gameWrap");
+  const maxW = window.innerWidth;
+  const maxH = window.innerHeight;
+  const scale = Math.max(1, Math.floor(Math.min(maxW / VIEW_W, maxH / VIEW_H)));
+  canvas.style.width = (VIEW_W * scale) + "px";
+  canvas.style.height = (VIEW_H * scale) + "px";
+}
+window.addEventListener("resize", fitCanvas);
+fitCanvas();
+
+/* ============================================================
+   WORLD
+============================================================ */
+const WORLD_W = 1200;
+const WORLD_H = 900;
+const TILE = 40;
+
+const player = {
+  x: WORLD_W/2, y: WORLD_H/2,
+  w: 22, h: 26,
+  speed: 95,
+  dir: "down",
+  hp: 3, maxHp: 5,
+  invuln: 0,
+  bumpCd: 0,
+  animT: 0,
+  moving:false
+};
+
+let coins = [];
+let slimes = [];
+let particles = [];
+let camX = 0, camY = 0;
+let score = 0;
+let elapsed = 0;
+let running = false;
+let gameOver = false;
+
+function rand(a,b){ return a + Math.random()*(b-a); }
+function dist(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+
+function spawnWorld(){
+  coins = [];
+  slimes = [];
+  for(let i=0;i<16;i++){
+    coins.push({
+      x: rand(60, WORLD_W-60),
+      y: rand(60, WORLD_H-60),
+      taken:false,
+      bob: Math.random()*Math.PI*2
+    });
+  }
+  for(let i=0;i<9;i++){
+    let sx = rand(60, WORLD_W-60);
+    let sy = rand(60, WORLD_H-60);
+    // keep clear of player start
+    if(dist(sx,sy,player.x,player.y) < 140){ sx += 200; }
+    slimes.push({
+      x:sx, y:sy, w:22, h:18,
+      hp:2,
+      vx: rand(-1,1), vy: rand(-1,1),
+      changeT: rand(0,2),
+      hitT:0,
+      alive:true,
+      bob: Math.random()*Math.PI*2
+    });
+  }
+}
+
+/* ============================================================
+   INPUT — Virtual Joystick
+============================================================ */
+const joyZone = document.getElementById("joyZone");
+const joyBase = document.getElementById("joyBase");
+const joyStick = document.getElementById("joyStick");
+let joyActive = false;
+let joyId = null;
+let joyOrigin = {x:0,y:0};
+let joyVec = {x:0,y:0};
+const JOY_RADIUS = 55;
+
+function joyStart(id,x,y){
+  joyActive = true;
+  joyId = id;
+  joyOrigin = {x,y};
+  joyBase.style.left = (x - 55) + "px";
+  joyBase.style.top = (y - 55) + "px";
+  joyBase.style.display = "block";
+  joyStick.style.display = "block";
+  moveStick(x,y);
+}
+function moveStick(x,y){
+  let dx = x - joyOrigin.x;
+  let dy = y - joyOrigin.y;
+  const d = Math.hypot(dx,dy);
+  const clamped = Math.min(d, JOY_RADIUS);
+  const ang = Math.atan2(dy,dx);
+  const sx = joyOrigin.x + Math.cos(ang)*clamped;
+  const sy = joyOrigin.y + Math.sin(ang)*clamped;
+  joyStick.style.left = (sx-24) + "px";
+  joyStick.style.top = (sy-24) + "px";
+  joyVec.x = d > 6 ? Math.cos(ang) * Math.min(1,d/JOY_RADIUS) : 0;
+  joyVec.y = d > 6 ? Math.sin(ang) * Math.min(1,d/JOY_RADIUS) : 0;
+}
+function joyEnd(){
+  joyActive = false;
+  joyId = null;
+  joyVec = {x:0,y:0};
+  joyBase.style.display = "none";
+  joyStick.style.display = "none";
+}
+
+joyZone.addEventListener("touchstart",(e)=>{
+  e.preventDefault();
+  const t = e.changedTouches[0];
+  joyStart(t.identifier, t.clientX, t.clientY);
+},{passive:false});
+joyZone.addEventListener("touchmove",(e)=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier === joyId) moveStick(t.clientX, t.clientY);
+  }
+},{passive:false});
+joyZone.addEventListener("touchend",(e)=>{
+  e.preventDefault();
+  for(const t of e.changedTouches){
+    if(t.identifier === joyId) joyEnd();
+  }
+},{passive:false});
+joyZone.addEventListener("touchcancel", joyEnd);
+
+// mouse fallback (desktop testing)
+let mouseDown=false;
+joyZone.addEventListener("mousedown",(e)=>{ mouseDown=true; joyStart("mouse", e.clientX, e.clientY); });
+window.addEventListener("mousemove",(e)=>{ if(mouseDown) moveStick(e.clientX, e.clientY); });
+window.addEventListener("mouseup",()=>{ if(mouseDown){ mouseDown=false; joyEnd(); }});
+
+// keyboard fallback (desktop testing)
+const keys = {};
+window.addEventListener("keydown", e=>keys[e.key.toLowerCase()]=true);
+window.addEventListener("keyup", e=>keys[e.key.toLowerCase()]=false);
+
+/* ============================================================
+   PARTICLES (using dust / sparkle / splat)
+============================================================ */
+function addParticle(type, x, y){
+  particles.push({
+    type, x, y,
+    t:0, life: type==="dust" ? 0.4 : (type==="sparkle" ? 0.5 : 0.55),
+    vx: rand(-20,20), vy: rand(-20,20),
+    scale: type==="splat" ? rand(0.8,1.1) : rand(0.6,1)
+  });
+}
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.t += dt;
+    p.x += p.vx*dt;
+    p.y += p.vy*dt;
+    if(p.t >= p.life) particles.splice(i,1);
+  }
+}
+function drawParticles(){
+  for(const p of particles){
+    const img = images[p.type];
+    if(!img || !img.width) continue;
+    const alpha = 1 - (p.t/p.life);
+    ctx.globalAlpha = Math.max(0,alpha);
+    const size = 16*p.scale;
+    ctx.drawImage(img, p.x-camX-size/2, p.y-camY-size/2, size, size);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+let toastT = 0;
+function showToast(msg){
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  toastT = 1.1;
+}
+function updateToast(dt){
+  if(toastT>0){
+    toastT -= dt;
+    if(toastT<=0) document.getElementById("toast").classList.remove("show");
+  }
+}
+
+/* ============================================================
+   HUD
+============================================================ */
+function renderHearts(){
+  const box = document.getElementById("hearts");
+  box.innerHTML = "";
+  for(let i=0;i<player.maxHp;i++){
+    const slot = document.createElement("div");
+    slot.className = "heart-slot" + (i < player.hp ? "" : " empty");
+    const img = document.createElement("img");
+    img.src = ASSET_URLS.heart;
+    slot.appendChild(img);
+    box.appendChild(slot);
+  }
+}
+
+/* ============================================================
+   UPDATE
+============================================================ */
+function update(dt){
+  if(!running || gameOver) return;
+  elapsed += dt;
+
+  // --- input vector ---
+  let ix = joyVec.x, iy = joyVec.y;
+  if(keys["arrowleft"]||keys["a"]) ix = -1;
+  if(keys["arrowright"]||keys["d"]) ix = 1;
+  if(keys["arrowup"]||keys["w"]) iy = -1;
+  if(keys["arrowdown"]||keys["s"]) iy = 1;
+
+  const mag = Math.hypot(ix,iy);
+  player.moving = mag > 0.08;
+  if(player.moving){
+    const nx = ix/mag, ny = iy/mag;
+    player.x += nx * player.speed * dt;
+    player.y += ny * player.speed * dt;
+    if(Math.abs(ix) > Math.abs(iy)) player.dir = ix>0 ? "right" : "left";
+    else player.dir = iy>0 ? "down" : "up";
+    player.animT += dt;
+
+    // dust trail while moving
+    if(Math.random() < 0.18){
+      addParticle("dust", player.x + rand(-4,4), player.y + player.h/2 + rand(-2,2));
+    }
+  }
+
+  player.x = Math.max(20, Math.min(WORLD_W-20, player.x));
+  player.y = Math.max(20, Math.min(WORLD_H-20, player.y));
+
+  if(player.invuln>0) player.invuln -= dt;
+  if(player.bumpCd>0) player.bumpCd -= dt;
+
+  // --- camera follow ---
+  camX = player.x - VIEW_W/2;
+  camY = player.y - VIEW_H/2;
+  camX = Math.max(0, Math.min(WORLD_W - VIEW_W, camX));
+  camY = Math.max(0, Math.min(WORLD_H - VIEW_H, camY));
+
+  // --- coins ---
+  for(const c of coins){
+    if(c.taken) continue;
+    c.bob += dt*3;
+    if(dist(player.x,player.y,c.x,c.y) < 20){
+      c.taken = true;
+      score += 1;
+      document.getElementById("coinVal").textContent = score;
+      addParticle("sparkle", c.x, c.y);
+      addParticle("sparkle", c.x+6, c.y-4);
+      showToast("+1 coin");
+    }
+  }
+
+  // --- slimes ---
+  for(const s of slimes){
+    if(!s.alive) continue;
+    s.bob += dt*2.2;
+    s.changeT -= dt;
+    if(s.changeT <= 0){
+      s.vx = rand(-1,1); s.vy = rand(-1,1);
+      s.changeT = rand(1,2.5);
+    }
+    const sp = 22;
+    s.x += s.vx*sp*dt;
+    s.y += s.vy*sp*dt;
+    s.x = Math.max(20, Math.min(WORLD_W-20, s.x));
+    s.y = Math.max(20, Math.min(WORLD_H-20, s.y));
+    if(s.hitT>0) s.hitT -= dt;
+
+    const d = dist(player.x,player.y,s.x,s.y);
+    if(d < 22){
+      if(player.bumpCd<=0){
+        // player bumps slime -> damage slime, knockback both
+        s.hp -= 1;
+        s.hitT = 0.25;
+        player.bumpCd = 0.35;
+        const ang = Math.atan2(s.y-player.y, s.x-player.x);
+        s.x += Math.cos(ang)*18;
+        s.y += Math.sin(ang)*18;
+        addParticle("splat", s.x, s.y);
+
+        if(s.hp<=0){
+          s.alive = false;
+          addParticle("splat", s.x, s.y);
+          addParticle("splat", s.x+5, s.y+3);
+          score += 2;
+          document.getElementById("coinVal").textContent = score;
+          showToast("Slime defeated! +2");
+        }
+
+        if(player.invuln<=0){
+          player.hp -= 1;
+          player.invuln = 0.9;
+          player.x -= Math.cos(ang)*14;
+          player.y -= Math.sin(ang)*14;
+          renderHearts();
+          if(player.hp<=0){
+            endGame();
+          }
+        }
+      }
+    }
+  }
+
+  updateParticles(dt);
+  updateToast(dt);
+}
+
+/* ============================================================
+   DRAW
+============================================================ */
+let images = {};
+
+function drawTiledBackground(){
+  const bg = images.background;
+  if(bg && bg.width){
+    const tw = 64, th = 64;
+    const startX = Math.floor(camX / tw) * tw;
+    const startY = Math.floor(camY / th) * th;
+    for(let y = startY; y < camY + VIEW_H + th; y += th){
+      for(let x = startX; x < camX + VIEW_W + tw; x += tw){
+        ctx.drawImage(bg, x - camX, y - camY, tw, th);
+      }
+    }
+  } else {
+    ctx.fillStyle = "#1c2b1a";
+    ctx.fillRect(0,0,VIEW_W,VIEW_H);
+  }
+  // vignette edges for depth
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.fillRect(0,0,VIEW_W,6);
+  ctx.fillRect(0,VIEW_H-6,VIEW_W,6);
+}
+
+function draw(){
+  ctx.clearRect(0,0,VIEW_W,VIEW_H);
+  drawTiledBackground();
+
+  // coins
+  for(const c of coins){
+    if(c.taken) continue;
+    const img = images.coin;
+    const yOff = Math.sin(c.bob)*3;
+    const size = 16;
+    if(img && img.width){
+      ctx.drawImage(img, c.x-camX-size/2, c.y-camY-size/2+yOff, size, size);
+    } else {
+      ctx.fillStyle = "#ffd76a";
+      ctx.beginPath();
+      ctx.arc(c.x-camX, c.y-camY+yOff, 6, 0, Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  // slimes
+  for(const s of slimes){
+    if(!s.alive) continue;
+    const img = images.slime;
+    const yOff = Math.sin(s.bob)*2;
+    const w = 26, h = 22;
+    ctx.save();
+    if(s.hitT>0){
+      ctx.filter = "brightness(2) saturate(0)";
+    }
+    if(img && img.width){
+      ctx.drawImage(img, s.x-camX-w/2, s.y-camY-h/2+yOff, w, h);
+    } else {
+      ctx.fillStyle = "#5fd17a";
+      ctx.fillRect(s.x-camX-w/2, s.y-camY-h/2+yOff, w, h);
+    }
+    ctx.restore();
+  }
+
+  drawParticles();
+
+  // player
+  {
+    const img = images.player;
+    const w = player.w, h = player.h;
+    const bounce = player.moving ? Math.abs(Math.sin(player.animT*8))*2 : 0;
+    let flash = player.invuln>0 && Math.floor(player.invuln*14)%2===0;
+    ctx.save();
+    if(flash) ctx.globalAlpha = 0.35;
+
+    const px = player.x - camX;
+    const py = player.y - camY - bounce;
+
+    // shadow
+    ctx.globalAlpha = flash ? 0.15 : 0.35;
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(px, player.y-camY+h/2, 10, 3.5, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.globalAlpha = flash ? 0.35 : 1;
+
+    if(img && img.width){
+      let flip = player.dir === "left";
+      if(flip){
+        ctx.translate(px, 0);
+        ctx.scale(-1,1);
+        ctx.drawImage(img, -w/2, py-h/2, w, h);
+      } else {
+        ctx.drawImage(img, px-w/2, py-h/2, w, h);
+      }
+    } else {
+      ctx.fillStyle = "#7cf0c2";
+      ctx.fillRect(px-w/2, py-h/2, w, h);
+    }
+    ctx.restore();
+  }
+}
+
+/* ============================================================
+   GAME LOOP
+============================================================ */
+let lastT = 0;
+function loop(ts){
+  const dt = Math.min(0.05, (ts-lastT)/1000 || 0);
+  lastT = ts;
+  update(dt);
+  draw();
+  requestAnimationFrame(loop);
+}
+
+/* ============================================================
+   START / END
+============================================================ */
+function endGame(){
+  gameOver = true;
+  running = false;
+  document.getElementById("overScreen").classList.remove("hidden");
+  const mins = Math.floor(elapsed/60);
+  const secs = Math.floor(elapsed%60).toString().padStart(2,"0");
+  document.getElementById("gameOverStats").innerHTML =
+    `Coins collected: <b>${score}</b><br>Time survived: <b>${mins}:${secs}</b>`;
+}
+
+function resetGame(){
+  player.x = WORLD_W/2; player.y = WORLD_H/2;
+  player.hp = 3; player.maxHp = 5;
+  player.invuln = 0; player.bumpCd = 0;
+  score = 0; elapsed = 0;
+  document.getElementById("coinVal").textContent = "0";
+  particles = [];
+  spawnWorld();
+  renderHearts();
+  gameOver = false;
+}
+
+async function boot(){
+  const entries = Object.entries(ASSET_URLS);
+  const loaded = await Promise.all(entries.map(([k,url])=>loadImage(url)));
+  entries.forEach(([k],i)=>{ images[k] = loaded[i]; });
+
+  resetGame();
+  renderHearts();
+  requestAnimationFrame(loop);
+}
+
+document.getElementById("startBtn").addEventListener("click", ()=>{
+  document.getElementById("startScreen").classList.add("hidden");
+  running = true;
+});
+document.getElementById("retryBtn").addEventListener("click", ()=>{
+  document.getElementById("overScreen").classList.add("hidden");
+  resetGame();
+  running = true;
 });
 
-// Game State
-let score = 0;
-let health = 3;
-let gameOver = false;
-let invincibilityTimer = 0;
-const particles = [];
+boot();
 
-function spawnParticle(type, x, y, vx, vy, life, size = 16) {
-  particles.push({ type, x, y, vx, vy, life, maxLife: life, size });
-}
-
-const keys = { up: false, down: false, left: false, right: false };
-
-const player = { x: 144, y: 104, size: 32, speed: 2 };
-const coin = { x: 50, y: 50, size: 16 };
-const enemies = [
-  { x: 30, y: 30, size: 32, vx: 1.5, vy: 1.2 },
-  { x: 200, y: 150, size: 32, vx: -1.2, vy: 1.5 }
-];
-
-function spawnCoin() {
-  coin.x = Math.floor(Math.random() * (canvas.width - coin.size - 20)) + 10;
-  coin.y = Math.floor(Math.random() * (canvas.height - coin.size - 20)) + 10;
-}
-
-// Input Handlers
-window.addEventListener('keydown', e => handleKey(e.key, true));
-window.addEventListener('keyup', e => handleKey(e.key, false));
-
-function handleKey(key, isPressed) {
-  if (key === 'ArrowUp' || key === 'w' || key === 'W') keys.up = isPressed;
-  if (key === 'ArrowDown' || key === 's' || key === 'S') keys.down = isPressed;
-  if (key === 'ArrowLeft' || key === 'a' || key === 'A') keys.left = isPressed;
-  if (key === 'ArrowRight' || key === 'd' || key === 'D') keys.right = isPressed;
-  if (gameOver && isPressed) resetGame();
-}
-
-function bindTouch(id, dir) {
-  const btn = document.getElementById(id);
-  const start = (e) => { 
-    e.preventDefault(); 
-    keys[dir] = true; 
-    if (gameOver) resetGame(); 
-  };
-  const end = (e) => { 
-    e.preventDefault(); 
-    keys[dir] = false; 
-  };
-  
-  btn.addEventListener('pointerdown', start);
-  btn.addEventListener('pointerup', end);
-  btn.addEventListener('pointercancel', end);
-  btn.addEventListener('pointerleave', end);
-}
-bindTouch('up', 'up');
-bindTouch('down', 'down');
-bindTouch('left', 'left');
-bindTouch('right', 'right');
-
-function resetGame() {
-  health = 3;
-  score = 0;
-  invincibilityTimer = 0;
-  particles.length = 0;
-  player.x = 144;
-  player.y = 104;
-  gameOver = false;
-  spawnCoin();
-}
-
-// Collision Helper
-function checkCollision(a, b) {
-  return a.x < b.x + b.size &&
-         a.x + a.size > b.x &&
-         a.y < b.y + b.size &&
-         a.y + a.size > b.y;
-}
-
-// Update Loop
-let time = 0;
-function update() {
-  time += 0.15;
-  if (invincibilityTimer > 0) invincibilityTimer--;
-
-  // Update particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx;
-    p.y += p.vy;
-    if (p.type === 'splat') p.vy += 0.25; // Gravity effect for splat
-    if (p.type === 'sparkle') { p.vx *= 0.92; p.vy *= 0.92; }
-    p.life--;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-
-  if (gameOver) return;
-
-  player.isMoving = false;
-  if (keys.up && player.y > 0) { player.y -= player.speed; player.isMoving = true; }
-  if (keys.down && player.y < canvas.height - player.size) { player.y += player.speed; player.isMoving = true; }
-  if (keys.left && player.x > 0) { player.x -= player.speed; player.isMoving = true; }
-  if (keys.right && player.x < canvas.width - player.size) { player.x += player.speed; player.isMoving = true; }
-
-  // Spawn walking dust
-  if (player.isMoving && Math.random() < 0.3) {
-    spawnParticle('dust', player.x + 8 + (Math.random() * 8), player.y + 20, (Math.random() - 0.5) * 0.5, -Math.random() * 0.4, 18, 16);
-  }
-
-  // Enemy movement & bounce
-  enemies.forEach(enemy => {
-    enemy.x += enemy.vx;
-    enemy.y += enemy.vy;
-
-    if (enemy.x <= 0 || enemy.x >= canvas.width - enemy.size) enemy.vx *= -1;
-    if (enemy.y <= 0 || enemy.y >= canvas.height - enemy.size) enemy.vy *= -1;
-
-    // Hit Enemy
-    if (invincibilityTimer <= 0 && checkCollision(player, enemy)) {
-      health -= 1;
-      invincibilityTimer = 60;
-      spawnParticle('splat', player.x + player.size / 2 - 6, player.y + player.size / 2 - 6, (Math.random() - 0.5) * 1.5, -3.5, 45, 12);
-      player.x = canvas.width / 2 - 16;
-      player.y = canvas.height / 2 - 16;
-      if (health <= 0) gameOver = true;
-    }
-  });
-
-  // Collect Gem
-  if (checkCollision(player, coin)) {
-    score += 10;
-    for (let i = 0; i < 6; i++) {
-      spawnParticle('sparkle', coin.x + 8 - 5, coin.y + 8 - 5, Math.cos((i / 6) * Math.PI * 2) * 1.5, Math.sin((i / 6) * Math.PI * 2) * 1.5, 26, 10);
-      particles[particles.length - 1].rot = Math.random() * Math.PI;
-    }
-    spawnCoin();
-  }
-}
-
-// Render Loop
-function draw() {
-  // Background Tile
-  if (images.background.loaded) {
-    ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
-  } else {
-    ctx.fillStyle = '#2d3732';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-  }
-
-  // Coin
-  if (images.coin.loaded) {
-    ctx.drawImage(images.coin, coin.x, coin.y, coin.size, coin.size);
-  } else {
-    ctx.fillStyle = '#f1c40f';
-    ctx.fillRect(coin.x, coin.y, coin.size, coin.size);
-  }
-
-  // Enemies
-  enemies.forEach((enemy, index) => {
-    ctx.save();
-    const bounce = Math.abs(Math.sin(time + index)) * 4;
-    const tilt = Math.cos(time + index) * 0.1;
-    
-    ctx.translate(enemy.x + enemy.size / 2, enemy.y + enemy.size / 2 - bounce);
-    ctx.rotate(tilt);
-    
-    if (images.slime.loaded) {
-      ctx.drawImage(images.slime, -enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
-    } else {
-      ctx.fillStyle = '#e74c3c';
-      ctx.fillRect(-enemy.size / 2, -enemy.size / 2, enemy.size, enemy.size);
-    }
-    ctx.restore();
-  });
-
-  // Player
-  if (invincibilityTimer % 6 < 3) {
-    ctx.save();
-    let pBounce = 0;
-    let pTilt = 0;
-    if (player.isMoving) {
-      pBounce = Math.abs(Math.sin(time * 1.5)) * 5;
-      pTilt = Math.cos(time * 1.5) * 0.15;
-    }
-    
-    ctx.translate(player.x + player.size / 2, player.y + player.size / 2 - pBounce);
-    ctx.rotate(pTilt);
-    
-    if (images.player.loaded) {
-      ctx.drawImage(images.player, -player.size / 2, -player.size / 2, player.size, player.size);
-    } else {
-      ctx.fillStyle = '#3498db';
-      ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
-    }
-    ctx.restore();
-  }
-
-  // Render Particles
-  particles.forEach(p => {
-    ctx.save();
-    const lifeRatio = Math.max(0, p.life / p.maxLife);
-    ctx.globalAlpha = lifeRatio;
-    if (images[p.type] && images[p.type].loaded) {
-      ctx.drawImage(images[p.type], p.x, p.y, p.size, p.size);
-    } else if (p.type === 'sparkle') {
-      const cx = p.x + p.size / 2;
-      const cy = p.y + p.size / 2;
-      const scale = Math.sin(lifeRatio * Math.PI);
-      const s = (p.size / 2) * scale;
-      ctx.translate(cx, cy);
-      ctx.rotate(p.rot || 0);
-      ctx.fillStyle = '#fff8d6';
-      ctx.beginPath();
-      ctx.moveTo(0, -s);
-      ctx.lineTo(s * 0.28, -s * 0.28);
-      ctx.lineTo(s, 0);
-      ctx.lineTo(s * 0.28, s * 0.28);
-      ctx.lineTo(0, s);
-      ctx.lineTo(-s * 0.28, s * 0.28);
-      ctx.lineTo(-s, 0);
-      ctx.lineTo(-s * 0.28, -s * 0.28);
-      ctx.closePath();
-      ctx.fill();
-      ctx.fillStyle = '#ffd700';
-      ctx.globalAlpha = lifeRatio * 0.6;
-      ctx.beginPath();
-      ctx.arc(0, 0, s * 0.35, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (p.type === 'dust') {
-      const cx = p.x + p.size / 2;
-      const cy = p.y + p.size / 2;
-      const scale = Math.sin(lifeRatio * Math.PI * 0.9 + 0.1);
-      const r = (p.size / 2) * scale;
-      ctx.translate(cx, cy);
-      ctx.rotate(p.rot || 0);
-      ctx.fillStyle = '#d8d4c8';
-      ctx.globalAlpha = lifeRatio * 0.55;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, r, r * 0.7, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#f2efe6';
-      ctx.globalAlpha = lifeRatio * 0.4;
-      ctx.beginPath();
-      ctx.ellipse(-r * 0.2, -r * 0.15, r * 0.5, r * 0.35, 0, 0, Math.PI * 2);
-      ctx.fill();
-    } else {
-      ctx.fillStyle = '#e74c3c';
-      ctx.fillRect(p.x, p.y, p.size / 2, p.size / 2);
-    }
-    ctx.restore();
-  });
-
-  // UI (Hearts & Score)
-  ctx.fillStyle = '#fff';
-  ctx.font = '12px monospace';
-  ctx.fillText(`SCORE: ${score}`, 10, 18);
-
-  for (let i = 0; i < health; i++) {
-    if (images.heart.loaded) {
-      ctx.drawImage(images.heart, canvas.width - 24 - (i * 20), 8, 16, 16);
-    } else {
-      ctx.fillStyle = '#e74c3c';
-      ctx.fillRect(canvas.width - 24 - (i * 20), 8, 12, 12);
-    }
-  }
-
-  // Game Over Screen
-  if (gameOver) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.75)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#fff';
-    ctx.textAlign = 'center';
-    ctx.font = '16px monospace';
-    ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 10);
-    ctx.font = '10px monospace';
-    ctx.fillText('Tap D-Pad or press key to restart', canvas.width / 2, canvas.height / 2 + 15);
-    ctx.textAlign = 'left';
-  }
-}
-
-function gameLoop() {
-  update();
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-gameLoop();
+})();
   </script>
 </body>
 
